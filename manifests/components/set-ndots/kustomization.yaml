@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+- patch: &patch |
+    apiVersion: ANY
+    kind: ANY
+    metadata:
+      name: ANY
+    spec:
+      template:
+        spec:
+          dnsConfig:
+            options:
+            - name: ndots
+              value: "1"
+  target:
+    kind: Deployment
+- patch: *patch
+  target:
+    kind: StatefulSet
+- patch: *patch
+  target:
+    kind: DaemonSet
+- patch: *patch
+  target:
+    kind: Job
+- patch: |
+    apiVersion: ANY
+    kind: ANY
+    metadata:
+      name: ANY
+    spec:
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              dnsConfig:
+                options:
+                - name: ndots
+                  value: "1"
+  target:
+    kind: CronJob

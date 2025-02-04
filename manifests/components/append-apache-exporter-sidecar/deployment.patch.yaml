@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ANY
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: apache-exporter
+        image: apache-exporter
+        imagePullPolicy: IfNotPresent
+        restartPolicy: Always
+        args:
+        - --scrape_uri=http://localhost/server-status?auto
+        ports:
+        - name: web-telemetry
+          containerPort: 9117
+        resources:
+          limits:
+            cpu: 50m
+            memory: 50Mi
+          requests:
+            cpu: 50m
+            memory: 50Mi
