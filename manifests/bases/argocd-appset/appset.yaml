@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: frontier-k8s
+spec:
+  generators:
+  - merge:
+      mergeKeys: [name, path]
+      generators:
+      - git:
+          repoURL: &repoURL git@github.com:wfs-inc/frontier-Kubernetes.git
+          revision: &revision main
+          directories:
+          - path: manifests/overlays/*/*/* # <cluster>-<namespace>-<module>
+          values:
+            autosync: 'null'
+      # .autosync ファイルが存在する場合は autosync を有効にする
+      - git:
+          repoURL: *repoURL
+          revision: *revision
+          files:
+          - path: manifests/overlays/*/*/*/.autosync # <cluster>-<namespace>-<module>
+          values:
+            autosync: '{}'
+  template:
+    metadata:
+      name: '{{path[3]}}-{{path[4]}}' # <namespace>-<module>
+      labels:
+        managed-by: 'ApplicationSet'
+    spec:
+      # project: '{{path[4]}}'
+      project: 'default'
+      source:
+        repoURL: *repoURL
+        targetRevision: *revision
+        path: '{{path}}'
+      destination:
+        name:      '{{path[2]}}'
+        namespace: '{{path[3]}}'
+  syncPolicy:
+    # applicationsSync: create-update    # application をカスケード削除しない
+    preserveResourcesOnDeletion: true    # application 配下のリソースをカスケード削除しない
+  ignoreApplicationDifferences:
+  - jsonPointers:
+    - /spec/syncPolicy                 # 自動 sync 設定を変更しても巻き戻さない
+  templatePatch: |
+    spec:
+      syncPolicy:
+        automated: {{values.autosync}}
