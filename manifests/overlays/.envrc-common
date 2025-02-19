@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -z "${AWS_PROFILE:-}" && -z "${GCP_PROJECT:-}" ]]; then
+  echo 'Error: "AWS_PROFILE" or "GCP_PROJECT" is required.'
+  [ -n "$EDIT_ENVRC" ] && vim .envrc
+  exit 1
+fi
+
+read _ _cluster _namespace _workload \
+  <<<$(git rev-parse --show-prefix | cut -d/ -f1- --output-delimiter=' ')
+: ${K8S_CLUSTER:=$_cluster}
+
+# Set KUBECONFIG
+export KUBECONFIG="$HOME/.kube/config.d/$(pwd | sed 's/\//!/g')"
+mkdir -p "$HOME/.kube/config.d"
+
+# Get credential
+if [ -f "$KUBECONFIG" ]; then
+  :
+else (
+  echo
+  echo "$KUBECONFIG does not exist. Getting credential..."
+
+  FILTER=$(
+    (type peco > /dev/null 2>&1 && echo peco) \
+    || (type fzf > /dev/null 2>&1 && echo fzf) \
+    || (echo grep)
+  )
+  FILTER_OP=$([[ "$FILTER" = "peco" || "$FILTER" = "fzf" ]] && echo "--query" || :)
+
+  read PROJECT CLUSTER < <(pwd | rev | cut -d/ -f1,2 --output-delimiter ' ' | rev)
+
+  if [ -n "${GCP_PROJECT:-}" ]; then
+    gcloud --project $GCP_PROJECT container clusters get-credentials --region $(gcloud --project $GCP_PROJECT container clusters list | $FILTER $FILTER_OP "$CLUSTER" | awk '{print $2,$1}')
+  elif [ -n "${AWS_PROFILE:-}" ]; then
+    aws eks update-kubeconfig --name $(aws eks list-clusters --output text | awk '{print $2}' | $FILTER $FILTER_OP "$CLUSTER")
+  fi
+  echo
+)
+fi

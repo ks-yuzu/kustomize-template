@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workload1
+spec:
+  template:
+    # metadata:
+    #   annotations:
+    #     cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+    spec:
+      containers:
+      - name: main
+        image: httpd
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 80
+        envFrom:
+        - configMapRef:
+            name: workload1-env
